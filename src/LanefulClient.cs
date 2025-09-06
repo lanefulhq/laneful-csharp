@@ -156,7 +156,7 @@ public class LanefulClient
     /// <returns>Response data as dictionary</returns>
     /// <exception cref="ApiException">When the API returns an error</exception>
     /// <exception cref="HttpException">When response parsing fails</exception>
-    private async Task<Dictionary<string, object>> HandleResponseAsync(HttpResponseMessage response, string responseBody, string url)
+    private Task<Dictionary<string, object>> HandleResponseAsync(HttpResponseMessage response, string responseBody, string url)
     {
         var statusCode = (int)response.StatusCode;
 
@@ -191,7 +191,7 @@ public class LanefulClient
         // Handle successful responses
         if (statusCode >= 200 && statusCode < 300)
         {
-            return data ?? new Dictionary<string, object>();
+            return Task.FromResult(data ?? new Dictionary<string, object>());
         }
 
         // Handle API errors

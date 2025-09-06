@@ -210,7 +210,7 @@ using Laneful.Webhooks;
 
 // In your webhook handler
 var payload = await request.Body.ReadAsStringAsync(); // Get the raw request body
-var signature = request.Headers["X-Laneful-Signature"].FirstOrDefault();
+var signature = request.Headers["x-webhook-signature"].FirstOrDefault();
 var secret = "your-webhook-secret";
 
 if (WebhookVerifier.VerifySignature(secret, payload, signature))

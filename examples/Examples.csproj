@@ -8,7 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="../Laneful.CSharp.csproj" />
+    <PackageReference Include="Laneful.CSharp" Version="1.0.0" />
   </ItemGroup>
 
 </Project>
