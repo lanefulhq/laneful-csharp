@@ -71,7 +71,7 @@ public class Email
 
     private Email(Builder builder)
     {
-        From = builder.FromAddress;
+        From = builder.FromAddress ?? throw new ArgumentNullException(nameof(builder.FromAddress), "From address is required");
         To = new List<Address>(builder.ToAddresses);
         Cc = builder.CcAddresses?.Count > 0 ? new List<Address>(builder.CcAddresses) : null;
         Bcc = builder.BccAddresses?.Count > 0 ? new List<Address>(builder.BccAddresses) : null;
