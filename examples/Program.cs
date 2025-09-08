@@ -1,6 +1,8 @@
 using Laneful;
 using Laneful.Models;
 using Laneful.Exceptions;
+using Laneful.Webhooks;
+using Laneful.Examples;
 
 // Example: Simple email sending with the Laneful C# SDK
 Console.WriteLine("📧 Laneful C# SDK Example");
@@ -148,6 +150,27 @@ try
     Console.WriteLine("✅ Batch emails sent successfully!");
     Console.WriteLine($"Response: {response5}");
 
+    // Example 6: Webhook verification demonstration
+    Console.WriteLine("\n🔗 Example 6: Webhook Verification Demo");
+    Console.WriteLine("-------------------------------------");
+
+    var webhookSecret = "test-webhook-secret";
+    var testPayload = WebhookExample.GenerateTestPayload();
+    var testSignature = WebhookVerifier.GenerateSignature(webhookSecret, testPayload, includePrefix: true);
+    
+    Console.WriteLine($"✅ Generated test webhook signature: {testSignature}");
+    Console.WriteLine($"✅ Test payload: {testPayload}");
+    
+    // Verify the signature
+    var isValid = WebhookVerifier.VerifySignature(webhookSecret, testPayload, testSignature);
+    Console.WriteLine($"✅ Signature verification: {(isValid ? "VALID" : "INVALID")}");
+    
+    // Parse the payload
+    var webhookData = WebhookVerifier.ParseWebhookPayload(testPayload);
+    Console.WriteLine($"✅ Parsed webhook data: {webhookData}");
+    Console.WriteLine($"✅ Event type: {webhookData.Events[0]["event"]}");
+    Console.WriteLine($"✅ Email: {webhookData.Events[0]["email"]}");
+
     Console.WriteLine("\n🎉 All examples completed successfully!");
     Console.WriteLine("\n📋 Summary of .NET 8 features used:");
     Console.WriteLine("   • Records for Address and TrackingSettings");
@@ -155,14 +178,21 @@ try
     Console.WriteLine("   • Nullable reference types");
     Console.WriteLine("   • Async/await support");
     Console.WriteLine("   • Modern C# syntax throughout");
+    Console.WriteLine("   • Webhook signature verification");
+    Console.WriteLine("   • JSON payload parsing and validation");
     Console.WriteLine("\n💡 Configuration:");
     Console.WriteLine("   • API endpoint: " + baseUrl);
     Console.WriteLine("   • Sender: " + senderEmail);
     Console.WriteLine("   • Recipient: " + recipientEmail);
+    Console.WriteLine("   • Webhook secret: " + webhookSecret);
     Console.WriteLine("\n💡 To send real emails:");
     Console.WriteLine("   1. Replace example values with your actual Laneful API credentials");
     Console.WriteLine("   2. Update email addresses with real recipients");
     Console.WriteLine("   3. Run this example again");
+    Console.WriteLine("\n💡 Webhook handling:");
+    Console.WriteLine("   • See WebhookExample.cs for complete webhook handling");
+    Console.WriteLine("   • See WebhookConsoleExample.cs for console demo");
+    Console.WriteLine("   • See WebhookControllerExample.cs for ASP.NET Core integration");
 
 }
 catch (ValidationException ex)
