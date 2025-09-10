@@ -8,7 +8,7 @@ namespace Laneful.Models;
 /// </summary>
 public record Attachment
 {
-    [JsonPropertyName("filename")]
+    [JsonPropertyName("file_name")]
     public string Filename { get; }
 
     [JsonPropertyName("content_type")]

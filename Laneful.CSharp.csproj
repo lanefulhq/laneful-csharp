@@ -6,7 +6,7 @@
     <Nullable>enable</Nullable>
     <LangVersion>latest</LangVersion>
     <PackageId>Laneful.CSharp</PackageId>
-    <Version>1.1.0</Version>
+    <Version>1.1.1</Version>
     <Authors>Laneful</Authors>
     <Company>Laneful</Company>
     <Description>A C# client library for the Laneful email API</Description>
@@ -19,7 +19,7 @@
     <NoWarn>$(NoWarn);1591</NoWarn>
     <PackageProjectUrl>https://github.com/lanefulhq/laneful-csharp</PackageProjectUrl>
     <PackageIconUrl></PackageIconUrl>
-    <PackageReleaseNotes>Added comprehensive webhook handling with signature verification, payload parsing, and event validation. Includes ASP.NET Core integration examples and complete documentation.</PackageReleaseNotes>
+    <PackageReleaseNotes>Fixed attachment field name issue (filename → file_name) and Content-Type header handling. All examples now working correctly including template emails, attachments, and comprehensive features.</PackageReleaseNotes>
     <Copyright>Copyright © Laneful 2025</Copyright>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
     <PackageOutputPath>./packages</PackageOutputPath>

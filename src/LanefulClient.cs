@@ -67,7 +67,7 @@ public class LanefulClient
         _httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {_authToken}");
         _httpClient.DefaultRequestHeaders.Add("Accept", "application/json");
         _httpClient.DefaultRequestHeaders.Add("User-Agent", UserAgent);
-        // Note: Content-Type is set in the request body, not in default headers
+        // Note: Content-Type is set on the content object, not in default headers
     }
 
     /// <summary>
@@ -119,12 +119,16 @@ public class LanefulClient
             // Build request
             var url = BuildUrl("/email/send");
             var content = new StringContent(jsonBody, System.Text.Encoding.UTF8, "application/json");
+            var request = new HttpRequestMessage(HttpMethod.Post, url)
+            {
+                Content = content
+            };
             
-            // Add explicit Content-Type header to ensure it's recognized
-            content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json");
+            // Explicitly set Content-Type header
+            request.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json");
 
             // Execute request
-            var response = await _httpClient.PostAsync(url, content);
+            var response = await _httpClient.SendAsync(request);
             var responseBody = await response.Content.ReadAsStringAsync();
 
             return await HandleResponseAsync(response, responseBody, url);
