@@ -1,3 +1,5 @@
+using System.Net.Http.Headers;
+using System.Text;
 using System.Text.Json;
 using Laneful.Exceptions;
 using Laneful.Models;
@@ -6,12 +8,15 @@ using Microsoft.Extensions.Logging;
 namespace Laneful;
 
 /// <summary>
-/// Main client for communicating with the Laneful email API.
+/// Main client for communicating with the Laneful API.
+/// Email sending uses a send host (https://your-endpoint.send.laneful.net).
+/// Domain, unsubscribe-group, and analytics endpoints use the organization
+/// API host (https://api.laneful.net).
 /// </summary>
 public class LanefulClient
 {
     private const string ApiVersion = "v1";
-    private const string UserAgent = "laneful-csharp/1.0.0";
+    private const string UserAgent = "laneful-csharp/1.2.0";
     private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(30);
 
     private readonly string _baseUrl;
@@ -23,11 +28,6 @@ public class LanefulClient
     /// <summary>
     /// Creates a new LanefulClient with the specified configuration.
     /// </summary>
-    /// <param name="baseUrl">The base URL of the Laneful API</param>
-    /// <param name="authToken">The authentication token</param>
-    /// <param name="httpClient">Optional custom HttpClient</param>
-    /// <param name="logger">Optional logger for debugging</param>
-    /// <exception cref="ValidationException">Thrown when input validation fails</exception>
     public LanefulClient(string baseUrl, string authToken, HttpClient? httpClient = null, ILogger<LanefulClient>? logger = null)
         : this(baseUrl, authToken, DefaultTimeout, httpClient, logger)
     {
@@ -36,12 +36,6 @@ public class LanefulClient
     /// <summary>
     /// Creates a new LanefulClient with custom timeout.
     /// </summary>
-    /// <param name="baseUrl">The base URL of the Laneful API</param>
-    /// <param name="authToken">The authentication token</param>
-    /// <param name="timeout">The request timeout</param>
-    /// <param name="httpClient">Optional custom HttpClient</param>
-    /// <param name="logger">Optional logger for debugging</param>
-    /// <exception cref="ValidationException">Thrown when input validation fails</exception>
     public LanefulClient(string baseUrl, string authToken, TimeSpan timeout, HttpClient? httpClient = null, ILogger<LanefulClient>? logger = null)
     {
         if (string.IsNullOrWhiteSpace(baseUrl))
@@ -54,84 +48,239 @@ public class LanefulClient
         _authToken = authToken.Trim();
         _logger = logger;
 
-        // Initialize JSON options
         _jsonOptions = new JsonSerializerOptions
         {
             PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
             WriteIndented = false
         };
 
-        // Initialize HTTP client
         _httpClient = httpClient ?? new HttpClient();
         _httpClient.Timeout = timeout;
-        _httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {_authToken}");
-        _httpClient.DefaultRequestHeaders.Add("Accept", "application/json");
-        _httpClient.DefaultRequestHeaders.Add("User-Agent", UserAgent);
-        // Note: Content-Type is set on the content object, not in default headers
+        if (!_httpClient.DefaultRequestHeaders.Contains("Authorization"))
+            _httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {_authToken}");
+        if (!_httpClient.DefaultRequestHeaders.Contains("Accept"))
+            _httpClient.DefaultRequestHeaders.Add("Accept", "application/json");
+        if (!_httpClient.DefaultRequestHeaders.Contains("User-Agent"))
+            _httpClient.DefaultRequestHeaders.Add("User-Agent", UserAgent);
     }
 
     /// <summary>
     /// Sends a single email.
     /// </summary>
-    /// <param name="email">The email to send</param>
-    /// <returns>API response data</returns>
-    /// <exception cref="ApiException">When the API returns an error</exception>
-    /// <exception cref="HttpException">When HTTP communication fails</exception>
-    /// <exception cref="ValidationException">When input validation fails</exception>
-    public async Task<Dictionary<string, object>> SendEmailAsync(Email email)
+    public Task<Dictionary<string, object>> SendEmailAsync(Email email, MailSettings? settings = null)
     {
-        return await SendEmailsAsync(new[] { email });
+        return SendEmailsAsync(new[] { email }, settings);
     }
 
     /// <summary>
     /// Sends multiple emails.
     /// </summary>
-    /// <param name="emails">List of emails to send</param>
-    /// <returns>API response data</returns>
-    /// <exception cref="ApiException">When the API returns an error</exception>
-    /// <exception cref="HttpException">When HTTP communication fails</exception>
-    /// <exception cref="ValidationException">When input validation fails</exception>
-    public async Task<Dictionary<string, object>> SendEmailsAsync(IEnumerable<Email> emails)
+    public async Task<Dictionary<string, object>> SendEmailsAsync(IEnumerable<Email> emails, MailSettings? settings = null)
     {
         var emailList = emails.ToList();
-        
+
         if (emailList.Count == 0)
             throw new ValidationException("Emails list cannot be empty");
 
-        // Validate all emails are Email instances
         foreach (var email in emailList)
         {
             if (email == null)
                 throw new ValidationException("Email cannot be null");
         }
 
+        var requestData = new Dictionary<string, object?>
+        {
+            ["emails"] = emailList
+        };
+
+        if (settings != null)
+            requestData["mail_settings"] = settings;
+
+        var body = await SendRequestAsync(HttpMethod.Post, "/email/send", requestData);
+        return JsonSerializer.Deserialize<Dictionary<string, object>>(body, _jsonOptions)
+               ?? new Dictionary<string, object>();
+    }
+
+    /// <summary>
+    /// List unsubscribe groups for a workspace.
+    /// Uses the organization API host (https://api.laneful.net).
+    /// </summary>
+    public Task<ListUnsubscribeGroupsResponse> ListUnsubscribeGroupsAsync(
+        long workspaceId,
+        ListUnsubscribeGroupsParams? parameters = null)
+    {
+        return RequestAsync<ListUnsubscribeGroupsResponse>(
+            HttpMethod.Get,
+            $"/workspaces/{workspaceId}/unsubscribe-groups",
+            query: parameters?.ToQuery());
+    }
+
+    /// <summary>
+    /// Create an unsubscribe group in a workspace.
+    /// Uses the organization API host (https://api.laneful.net).
+    /// </summary>
+    public async Task<UnsubscribeGroup> CreateUnsubscribeGroupAsync(long workspaceId, string name)
+    {
+        var response = await RequestAsync<UnsubscribeGroupResponse>(
+            HttpMethod.Post,
+            $"/workspaces/{workspaceId}/unsubscribe-groups",
+            new { name });
+        return response.UnsubscribeGroup;
+    }
+
+    /// <summary>
+    /// Update an unsubscribe group.
+    /// Uses the organization API host (https://api.laneful.net).
+    /// </summary>
+    public async Task<UnsubscribeGroup> UpdateUnsubscribeGroupAsync(
+        long workspaceId,
+        long unsubscribeGroupId,
+        string name)
+    {
+        var response = await RequestAsync<UnsubscribeGroupResponse>(
+            HttpMethod.Patch,
+            $"/workspaces/{workspaceId}/unsubscribe-groups/{unsubscribeGroupId}",
+            new { name });
+        return response.UnsubscribeGroup;
+    }
+
+    /// <summary>
+    /// List sending domains for a workspace.
+    /// Uses the organization API host (https://api.laneful.net).
+    /// </summary>
+    public Task<ListDomainsResponse> ListDomainsAsync(long workspaceId, ListDomainsParams? parameters = null)
+    {
+        return RequestAsync<ListDomainsResponse>(
+            HttpMethod.Get,
+            $"/workspaces/{workspaceId}/domains",
+            query: parameters?.ToQuery());
+    }
+
+    /// <summary>
+    /// Get a single sending domain by name.
+    /// Uses the organization API host (https://api.laneful.net).
+    /// </summary>
+    public Task<Domain> GetDomainAsync(long workspaceId, string domain)
+    {
+        return RequestAsync<Domain>(
+            HttpMethod.Get,
+            $"/workspaces/{workspaceId}/domains/{Uri.EscapeDataString(domain)}");
+    }
+
+    /// <summary>
+    /// Create a sending domain in a workspace.
+    /// Uses the organization API host (https://api.laneful.net).
+    /// </summary>
+    public Task<Domain> CreateDomainAsync(long workspaceId, CreateDomainRequest request)
+    {
+        return RequestAsync<Domain>(HttpMethod.Post, $"/workspaces/{workspaceId}/domains", request);
+    }
+
+    /// <summary>
+    /// Update a domain's mutable settings (currently the email track).
+    /// Uses the organization API host (https://api.laneful.net).
+    /// </summary>
+    public Task<Domain> UpdateDomainAsync(long workspaceId, string domain, UpdateDomainRequest request)
+    {
+        return RequestAsync<Domain>(
+            HttpMethod.Patch,
+            $"/workspaces/{workspaceId}/domains/{Uri.EscapeDataString(domain)}",
+            request);
+    }
+
+    /// <summary>
+    /// Trigger DNS verification for a domain.
+    /// Uses the organization API host (https://api.laneful.net).
+    /// </summary>
+    public Task<Domain> VerifyDomainAsync(long workspaceId, string domain)
+    {
+        return RequestAsync<Domain>(
+            HttpMethod.Post,
+            $"/workspaces/{workspaceId}/domains/{Uri.EscapeDataString(domain)}/verify");
+    }
+
+    /// <summary>
+    /// Delete a sending domain from a workspace.
+    /// Uses the organization API host (https://api.laneful.net).
+    /// </summary>
+    public Task<SuccessResponse> DeleteDomainAsync(long workspaceId, string domain)
+    {
+        return RequestAsync<SuccessResponse>(
+            HttpMethod.Delete,
+            $"/workspaces/{workspaceId}/domains/{Uri.EscapeDataString(domain)}");
+    }
+
+    /// <summary>
+    /// List domains whose spam complaint ratio reached a critical level.
+    /// Uses the organization API host (https://api.laneful.net).
+    /// </summary>
+    public Task<ListDomainSpamRatioRadarResponse> ListDomainSpamRatioRadarAsync(
+        ListDomainSpamRatioRadarParams? parameters = null)
+    {
+        return RequestAsync<ListDomainSpamRatioRadarResponse>(
+            HttpMethod.Get,
+            "/analytics/radar/domain-spam-ratio",
+            query: parameters?.ToQuery());
+    }
+
+    /// <summary>
+    /// List daily Google Postmaster Tools spam-rate reports.
+    /// Uses the organization API host (https://api.laneful.net).
+    /// </summary>
+    public Task<ListGooglePostmasterSpamReportsResponse> ListGooglePostmasterSpamReportsAsync(
+        ListGooglePostmasterSpamReportsParams? parameters = null)
+    {
+        return RequestAsync<ListGooglePostmasterSpamReportsResponse>(
+            HttpMethod.Get,
+            "/analytics/google-postmaster/spam-reports",
+            query: parameters?.ToQuery());
+    }
+
+    /// <summary>
+    /// List daily Microsoft SNDS reports for the organization's sending IPs.
+    /// Uses the organization API host (https://api.laneful.net).
+    /// </summary>
+    public Task<ListSndsReportsResponse> ListSndsReportsAsync(ListSndsReportsParams? parameters = null)
+    {
+        return RequestAsync<ListSndsReportsResponse>(
+            HttpMethod.Get,
+            "/analytics/microsoft-snds/reports",
+            query: parameters?.ToQuery());
+    }
+
+    private async Task<T> RequestAsync<T>(
+        HttpMethod method,
+        string path,
+        object? body = null,
+        IReadOnlyList<KeyValuePair<string, string>>? query = null)
+    {
+        var json = await SendRequestAsync(method, path, body, query);
+        return JsonSerializer.Deserialize<T>(json, _jsonOptions)
+               ?? throw new HttpException("Failed to decode JSON response: empty body", 200);
+    }
+
+    private async Task<string> SendRequestAsync(
+        HttpMethod method,
+        string path,
+        object? body = null,
+        IReadOnlyList<KeyValuePair<string, string>>? query = null)
+    {
         try
         {
-            // Prepare request data
-            var requestData = new Dictionary<string, object>
+            var url = AppendQuery(BuildUrl(path), query);
+            var request = new HttpRequestMessage(method, url);
+
+            if (body != null)
             {
-                ["emails"] = emailList
-            };
+                var jsonBody = JsonSerializer.Serialize(body, _jsonOptions);
+                _logger?.LogDebug("Request body: {RequestBody}", jsonBody);
+                request.Content = new StringContent(jsonBody, Encoding.UTF8, "application/json");
+                request.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
+            }
 
-            var jsonBody = JsonSerializer.Serialize(requestData, _jsonOptions);
-            _logger?.LogDebug("Request body: {RequestBody}", jsonBody);
-
-            // Build request
-            var url = BuildUrl("/email/send");
-            var content = new StringContent(jsonBody, System.Text.Encoding.UTF8, "application/json");
-            var request = new HttpRequestMessage(HttpMethod.Post, url)
-            {
-                Content = content
-            };
-            
-            // Explicitly set Content-Type header
-            request.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json");
-
-            // Execute request
             var response = await _httpClient.SendAsync(request);
             var responseBody = await response.Content.ReadAsStringAsync();
-
-            return await HandleResponseAsync(response, responseBody, url);
+            return HandleResponse(response, responseBody, url);
         }
         catch (HttpRequestException ex)
         {
@@ -139,11 +288,6 @@ public class LanefulClient
         }
     }
 
-    /// <summary>
-    /// Builds the full API URL for an endpoint.
-    /// </summary>
-    /// <param name="endpoint">The API endpoint</param>
-    /// <returns>Full URL</returns>
     private string BuildUrl(string endpoint)
     {
         var cleanBaseUrl = _baseUrl.EndsWith("/") ? _baseUrl[..^1] : _baseUrl;
@@ -151,20 +295,23 @@ public class LanefulClient
         return $"{cleanBaseUrl}/{ApiVersion}{cleanEndpoint}";
     }
 
-    /// <summary>
-    /// Handles the HTTP response and converts it to a dictionary.
-    /// </summary>
-    /// <param name="response">The HTTP response</param>
-    /// <param name="responseBody">The response body</param>
-    /// <param name="url">The request URL</param>
-    /// <returns>Response data as dictionary</returns>
-    /// <exception cref="ApiException">When the API returns an error</exception>
-    /// <exception cref="HttpException">When response parsing fails</exception>
-    private Task<Dictionary<string, object>> HandleResponseAsync(HttpResponseMessage response, string responseBody, string url)
+    private static string AppendQuery(string url, IReadOnlyList<KeyValuePair<string, string>>? query)
+    {
+        if (query == null || query.Count == 0)
+            return url;
+
+        var parts = query
+            .Where(kv => !string.IsNullOrEmpty(kv.Value))
+            .Select(kv => $"{Uri.EscapeDataString(kv.Key)}={Uri.EscapeDataString(kv.Value)}")
+            .ToList();
+
+        return parts.Count == 0 ? url : $"{url}?{string.Join("&", parts)}";
+    }
+
+    private static string HandleResponse(HttpResponseMessage response, string responseBody, string url)
     {
         var statusCode = (int)response.StatusCode;
 
-        // Handle 404 specifically as it likely means wrong URL
         if (statusCode == 404)
         {
             throw new HttpException(
@@ -173,13 +320,12 @@ public class LanefulClient
             );
         }
 
-        // Try to decode JSON response
         Dictionary<string, object>? data = null;
         try
         {
             if (!string.IsNullOrWhiteSpace(responseBody))
             {
-                data = JsonSerializer.Deserialize<Dictionary<string, object>>(responseBody, _jsonOptions);
+                data = JsonSerializer.Deserialize<Dictionary<string, object>>(responseBody);
             }
         }
         catch (JsonException ex)
@@ -192,13 +338,9 @@ public class LanefulClient
             );
         }
 
-        // Handle successful responses
         if (statusCode >= 200 && statusCode < 300)
-        {
-            return Task.FromResult(data ?? new Dictionary<string, object>());
-        }
+            return responseBody;
 
-        // Handle API errors
         var errorMessage = data?.GetValueOrDefault("error")?.ToString() ?? "Unknown API error";
         var details = data?.GetValueOrDefault("details")?.ToString();
         var fullError = string.IsNullOrEmpty(details) ? errorMessage : $"{errorMessage} - {details}";

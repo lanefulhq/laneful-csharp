@@ -83,6 +83,10 @@ docker run --env-file examples/.env laneful-csharp-examples all
 | `WebhookHandlerExample` | Webhook processing | Signature verification, event handling |
 | `ErrorHandlingExample` | Comprehensive error handling | Exception types, best practices |
 | `ComprehensiveExample` | All features combined | Complete feature demonstration |
+| `MailSettingsExample` | Sandbox send + From header | `mail_settings`, `from_header`, unsubscribe group name |
+| `DomainsExample` | Domain management | List, create, verify, update email track |
+| `UnsubscribeGroupsExample` | Unsubscribe groups | Create, update, list |
+| `AnalyticsExample` | Deliverability analytics | Spam-ratio radar, Google Postmaster, Microsoft SNDS |
 
 ## Environment Variables
 
@@ -97,6 +101,8 @@ All examples use environment variables for configuration:
 | `LANEFUL_TEMPLATE_ID` | ✅ | Template ID for template examples |
 | `LANEFUL_WEBHOOK_SECRET` | ✅ | Webhook signature verification secret |
 | `LANEFUL_WEBHOOK_URL` | ✅ | Your webhook endpoint URL |
+| `LANEFUL_ORG_BASE_URL` | ⚪ | Organization API host (`https://api.laneful.net`) for domain, group, and analytics examples |
+| `LANEFUL_WORKSPACE_ID` | ⚪ | Workspace ID for domain and unsubscribe-group examples |
 
 ## Docker Usage
 
@@ -151,12 +157,17 @@ docker run \
 - ✅ Reply-to functionality
 - ✅ Scheduled email delivery
 - ✅ Batch email sending
+- ✅ Sandbox mode and return message IDs
+- ✅ Visible From header
 
 ### Tracking & Analytics
 - ✅ Open tracking
 - ✅ Click tracking
 - ✅ Unsubscribe tracking
 - ✅ Custom email tags
+- ✅ Unsubscribe groups
+- ✅ Domain management
+- ✅ Spam-ratio radar, Google Postmaster, and Microsoft SNDS
 
 ### Webhook Handling
 - ✅ Signature verification (HMAC-SHA256)

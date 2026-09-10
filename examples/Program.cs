@@ -58,6 +58,22 @@ public class Program
                 case "comprehensiveexample":
                     await ComprehensiveExample.RunExample(args);
                     break;
+                case "mailsettings":
+                case "mailsettingsexample":
+                    await MailSettingsExample.RunExample(args);
+                    break;
+                case "domains":
+                case "domainsexample":
+                    await DomainsExample.RunExample(args);
+                    break;
+                case "unsubscribegroups":
+                case "unsubscribegroupsexample":
+                    await UnsubscribeGroupsExample.RunExample(args);
+                    break;
+                case "analytics":
+                case "analyticsexample":
+                    await AnalyticsExample.RunExample(args);
+                    break;
                 case "all":
                     await RunAllExamples();
                     break;
@@ -74,6 +90,10 @@ public class Program
                     Console.WriteLine("  - WebhookHandlerExample");
                     Console.WriteLine("  - ErrorHandlingExample");
                     Console.WriteLine("  - ComprehensiveExample");
+                    Console.WriteLine("  - MailSettingsExample");
+                    Console.WriteLine("  - DomainsExample");
+                    Console.WriteLine("  - UnsubscribeGroupsExample");
+                    Console.WriteLine("  - AnalyticsExample");
                     Console.WriteLine("  - all (runs all examples)");
                     break;
             }
@@ -97,7 +117,11 @@ public class Program
             ("BatchEmailExample", () => BatchEmailExample.RunExample(Array.Empty<string>())),
             ("WebhookHandlerExample", () => WebhookHandlerExample.RunExample(Array.Empty<string>())),
             ("ErrorHandlingExample", () => ErrorHandlingExample.RunExample(Array.Empty<string>())),
-            ("ComprehensiveExample", () => ComprehensiveExample.RunExample(Array.Empty<string>()))
+            ("ComprehensiveExample", () => ComprehensiveExample.RunExample(Array.Empty<string>())),
+            ("MailSettingsExample", () => MailSettingsExample.RunExample(Array.Empty<string>())),
+            ("DomainsExample", () => DomainsExample.RunExample(Array.Empty<string>())),
+            ("UnsubscribeGroupsExample", () => UnsubscribeGroupsExample.RunExample(Array.Empty<string>())),
+            ("AnalyticsExample", () => AnalyticsExample.RunExample(Array.Empty<string>()))
         };
 
         foreach (var example in examples)

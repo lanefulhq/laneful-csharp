@@ -17,6 +17,10 @@ public record Attachment
     [JsonPropertyName("content")]
     public string Content { get; }
 
+    [JsonPropertyName("inline_id")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? InlineId { get; }
+
     /// <summary>
     /// Creates an attachment from a file.
     /// </summary>
@@ -41,12 +45,14 @@ public record Attachment
     /// <param name="filename">The filename</param>
     /// <param name="contentType">The MIME type</param>
     /// <param name="content">Base64-encoded content</param>
+    /// <param name="inlineId">Optional inline attachment ID</param>
     /// <exception cref="ValidationException">Thrown when parameters are invalid</exception>
-    public Attachment(string filename, string contentType, string content)
+    public Attachment(string filename, string contentType, string content, string? inlineId = null)
     {
         Filename = filename;
         ContentType = contentType;
         Content = content;
+        InlineId = inlineId;
         Validate();
     }
 
@@ -58,14 +64,16 @@ public record Attachment
     /// <exception cref="ValidationException">Thrown when data is invalid</exception>
     public static Attachment FromDictionary(Dictionary<string, object> data)
     {
-        var filename = data.GetValueOrDefault("filename")?.ToString();
+        var filename = data.GetValueOrDefault("file_name")?.ToString()
+            ?? data.GetValueOrDefault("filename")?.ToString();
         var contentType = data.GetValueOrDefault("content_type")?.ToString();
         var content = data.GetValueOrDefault("content")?.ToString();
+        var inlineId = data.GetValueOrDefault("inline_id")?.ToString();
 
         if (filename == null || contentType == null || content == null)
             throw new ValidationException("Filename, content_type, and content are required");
 
-        return new Attachment(filename, contentType, content);
+        return new Attachment(filename, contentType, content, inlineId);
     }
 
     private void Validate()
