@@ -86,6 +86,7 @@ else
 
 The handler automatically processes all supported event types:
 
+- **request** - Send request accepted
 - **delivery** - Email delivered successfully
 - **open** - Email opened by recipient
 - **click** - Link clicked in email

@@ -76,6 +76,9 @@ public class WebhookHandlerExample
 
                 switch (eventType)
                 {
+                    case "request":
+                        Console.WriteLine($"✅ Send request accepted for: {email}");
+                        break;
                     case "delivery":
                         Console.WriteLine($"✅ Email delivered to: {email}");
                         break;

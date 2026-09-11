@@ -11,6 +11,10 @@ public class Email
     [JsonPropertyName("from")]
     public Address From { get; } = null!;
 
+    [JsonPropertyName("from_header")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public Address? FromHeader { get; }
+
     [JsonPropertyName("to")]
     public List<Address> To { get; }
 
@@ -87,6 +91,7 @@ public class Email
         WebhookData = builder.WebhookDataValue;
         Tag = builder.TagValue;
         Tracking = builder.TrackingSettings;
+        FromHeader = builder.FromHeaderAddress;
 
         Validate();
     }
@@ -207,6 +212,11 @@ public class Email
             builder.Tracking(TrackingSettings.FromDictionary(trackingDict));
         }
 
+        if (data.TryGetValue("from_header", out var fromHeaderData) && fromHeaderData is Dictionary<string, object> fromHeaderDict)
+        {
+            builder.FromHeader(Address.FromDictionary(fromHeaderDict));
+        }
+
         return builder.Build();
     }
 
@@ -225,6 +235,20 @@ public class Email
 
         if (!hasContent && !hasTemplate)
             throw new ValidationException("Email must have either content (text/HTML) or a template ID");
+
+        if (WebhookData != null)
+        {
+            if (WebhookData.Count > 20)
+                throw new ValidationException("Webhook data cannot have more than 20 keys");
+
+            foreach (var (key, value) in WebhookData)
+            {
+                if (key.Length > 50)
+                    throw new ValidationException("Webhook data keys cannot exceed 50 characters");
+                if (value.Length > 100)
+                    throw new ValidationException("Webhook data values cannot exceed 100 characters");
+            }
+        }
 
         // Validate send time
         if (SendTime.HasValue && SendTime.Value <= DateTimeOffset.UtcNow.ToUnixTimeSeconds())
@@ -257,6 +281,7 @@ public class Email
         internal Dictionary<string, string>? WebhookDataValue { get; private set; }
         internal string? TagValue { get; private set; }
         internal TrackingSettings? TrackingSettings { get; private set; }
+        internal Address? FromHeaderAddress { get; private set; }
 
         public Builder From(Address from)
         {
@@ -372,6 +397,17 @@ public class Email
         {
             TrackingSettings = tracking;
             return this;
+        }
+
+        public Builder FromHeader(Address? fromHeader)
+        {
+            FromHeaderAddress = fromHeader;
+            return this;
+        }
+
+        public Builder FromHeader(string email, string? name = null)
+        {
+            return FromHeader(new Address(email, name));
         }
 
         public Email Build()

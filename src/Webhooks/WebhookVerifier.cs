@@ -17,7 +17,7 @@ public static class WebhookVerifier
     // Valid event types as documented
     private static readonly HashSet<string> ValidEventTypes = new()
     {
-        "delivery", "open", "click", "drop", "spam_complaint", "unsubscribe", "bounce"
+        "request", "delivery", "open", "click", "drop", "spam_complaint", "unsubscribe", "bounce"
     };
     
     // UUID pattern for lane_id validation

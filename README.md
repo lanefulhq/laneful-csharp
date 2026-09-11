@@ -64,8 +64,12 @@ catch (Exception ex)
 - File attachments
 - Email tracking (opens, clicks, unsubscribes)
 - Custom headers and reply-to addresses
+- Visible `from_header` and request-level `mail_settings`
 - Scheduled sending
 - Webhook signature verification
+- Domain management (list, create, verify, update email track, delete)
+- Unsubscribe groups
+- Deliverability analytics (spam-ratio radar, Google Postmaster, Microsoft SNDS)
 - Modern .NET 8 features (records, pattern matching, etc.)
 - Async/await support
 - Comprehensive error handling
@@ -178,6 +182,41 @@ var emails = new[]
 var response = await client.SendEmailsAsync(emails);
 ```
 
+### Visible From header
+
+```csharp
+var email = new Email.Builder()
+    .From(new Address("sender@example.com", "Your Name"))
+    .To(new Address("user@example.com"))
+    .Subject("Hello")
+    .TextContent("Hello")
+    .FromHeader(new Address("newsletter@example.com", "Newsletter"))
+    .Build();
+```
+
+### Mail settings (sandbox and message IDs)
+
+```csharp
+var response = await client.SendEmailAsync(
+    email,
+    new MailSettings(sandboxMode: true, returnMessageIds: true)
+);
+// response["message_ids"] is present when returnMessageIds is true
+```
+
+### Tracking with an unsubscribe group
+
+```csharp
+var tracking = new TrackingSettings(
+    opens: true,
+    clicks: true,
+    unsubscribes: true,
+    unsubscribeGroupId: 123,
+    // ignored if unsubscribeGroupId is set
+    unsubscribeGroupName: "Newsletters"
+);
+```
+
 ### Custom Timeout
 
 ```csharp
@@ -215,9 +254,20 @@ var secret = "your-webhook-secret";
 
 if (WebhookVerifier.VerifySignature(secret, payload, signature))
 {
-    // Process webhook data
-    var data = JsonSerializer.Deserialize<Dictionary<string, object>>(payload);
-    // Handle webhook event
+    var webhookData = WebhookVerifier.ParseWebhookPayload(payload);
+    foreach (var evt in webhookData.Events)
+    {
+        switch (evt.GetValueOrDefault("event")?.ToString())
+        {
+            case "request":
+                // Handle send request accepted
+                break;
+            case "delivery":
+                // Handle email delivered
+                break;
+            // Add other event types as needed
+        }
+    }
 }
 else
 {
@@ -272,8 +322,26 @@ catch (Exception ex)
 
 #### Methods
 
-- `Task<Dictionary<string, object>> SendEmailAsync(Email email)` - Sends a single email
-- `Task<Dictionary<string, object>> SendEmailsAsync(IEnumerable<Email> emails)` - Sends multiple emails
+Send host (`https://your-endpoint.send.laneful.net`):
+
+- `Task<Dictionary<string, object>> SendEmailAsync(Email email, MailSettings? settings = null)` - Sends a single email
+- `Task<Dictionary<string, object>> SendEmailsAsync(IEnumerable<Email> emails, MailSettings? settings = null)` - Sends multiple emails
+
+Organization API host (`https://api.laneful.net`):
+
+- `Task<ListUnsubscribeGroupsResponse> ListUnsubscribeGroupsAsync(long workspaceId, ListUnsubscribeGroupsParams? parameters = null)`
+- `Task<UnsubscribeGroup> CreateUnsubscribeGroupAsync(long workspaceId, string name)`
+- `Task<UnsubscribeGroup> UpdateUnsubscribeGroupAsync(long workspaceId, long unsubscribeGroupId, string name)`
+- `Task<ListDomainsResponse> ListDomainsAsync(long workspaceId, ListDomainsParams? parameters = null)`
+- `Task<Domain> GetDomainAsync(long workspaceId, string domain)`
+- `Task<Domain> CreateDomainAsync(long workspaceId, CreateDomainRequest request)`
+- `Task<Domain> UpdateDomainAsync(long workspaceId, string domain, UpdateDomainRequest request)`
+- `Task<Domain> VerifyDomainAsync(long workspaceId, string domain)`
+- `Task<SuccessResponse> DeleteDomainAsync(long workspaceId, string domain)`
+- `Task<ListDomainSpamRatioRadarResponse> ListDomainSpamRatioRadarAsync(ListDomainSpamRatioRadarParams? parameters = null)`
+- `Task<ListGooglePostmasterSpamReportsResponse> ListGooglePostmasterSpamReportsAsync(ListGooglePostmasterSpamReportsParams? parameters = null)`
+- `Task<ListSndsReportsResponse> ListSndsReportsAsync(ListSndsReportsParams? parameters = null)`
+
 - `void Dispose()` - Disposes the HTTP client
 
 ### Email.Builder
@@ -299,6 +367,7 @@ catch (Exception ex)
 - `WebhookData(Dictionary<string, string>? webhookData)` - Webhook data
 - `Tag(string? tag)` - Email tag
 - `Tracking(TrackingSettings? tracking)` - Tracking settings
+- `FromHeader(Address? fromHeader)` / `FromHeader(string email, string? name)` - Visible From header
 
 ### Address
 
@@ -311,7 +380,67 @@ catch (Exception ex)
 
 ### TrackingSettings
 
-- `TrackingSettings(bool opens, bool clicks, bool unsubscribes)` - Creates tracking settings
+- `TrackingSettings(bool opens, bool clicks, bool unsubscribes, long? unsubscribeGroupId = null, string? unsubscribeGroupName = null)` - Creates tracking settings
+
+### MailSettings
+
+- `MailSettings(bool? sandboxMode = null, bool? returnMessageIds = null)` - Request-level send options
+
+## Domain, unsubscribe groups, and analytics
+
+These endpoints live on the organization API host. Point the client at it:
+
+```csharp
+var client = new LanefulClient(
+    "https://api.laneful.net",
+    "your-auth-token"
+);
+```
+
+### Unsubscribe groups
+
+```csharp
+var groups = await client.ListUnsubscribeGroupsAsync(42, new ListUnsubscribeGroupsParams { Limit = 50 });
+var created = await client.CreateUnsubscribeGroupAsync(42, "Newsletters");
+var updated = await client.UpdateUnsubscribeGroupAsync(42, created.UnsubscribeGroupId, "Weekly Newsletters");
+```
+
+### Domains
+
+```csharp
+var list = await client.ListDomainsAsync(42, new ListDomainsParams { Limit = 50 });
+var domain = await client.CreateDomainAsync(42, new CreateDomainRequest(
+    "mydomain.com",
+    "tracking",
+    "return-path"));
+domain = await client.GetDomainAsync(42, "mydomain.com");
+domain = await client.VerifyDomainAsync(42, "mydomain.com");
+
+// Set the email track; pass "" to clear it, or omit EmailTrackId to leave it unchanged
+domain = await client.UpdateDomainAsync(
+    42,
+    "mydomain.com",
+    new UpdateDomainRequest("e59f0a35-05bc-4516-b585-c06f69c3e67e"));
+
+await client.DeleteDomainAsync(42, "mydomain.com");
+```
+
+### Deliverability analytics
+
+```csharp
+var radar = await client.ListDomainSpamRatioRadarAsync(new ListDomainSpamRatioRadarParams
+{
+    WorkspaceIds = new[] { 1L, 2L },
+    Domain = "example.com",
+    StartDate = "2026-09-01",
+    EndDate = "2026-09-08"
+});
+
+var postmaster = await client.ListGooglePostmasterSpamReportsAsync(
+    new ListGooglePostmasterSpamReportsParams { Domain = "example.com" });
+
+var snds = await client.ListSndsReportsAsync(new ListSndsReportsParams { Ip = "203.0.113.5" });
+```
 
 ### WebhookVerifier
 
