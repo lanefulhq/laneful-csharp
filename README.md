@@ -4,7 +4,7 @@ A C# client library for the Laneful email API, built with modern C# features and
 
 ## Requirements
 
-- .NET 8.0 or higher
+- .NET 9.0 or higher
 - C# 12.0 or higher
 
 ## Installation
@@ -70,7 +70,7 @@ catch (Exception ex)
 - Domain management (list, create, verify, update email track, delete)
 - Unsubscribe groups
 - Deliverability analytics (spam-ratio radar, Google Postmaster, Microsoft SNDS)
-- Modern .NET 8 features (records, pattern matching, etc.)
+- Modern .NET 9 features (records, pattern matching, etc.)
 - Async/await support
 - Comprehensive error handling
 - Logging support
@@ -83,6 +83,7 @@ catch (Exception ex)
 var email = new Email.Builder()
     .From(new Address("sender@example.com"))
     .To(new Address("user@example.com"))
+    .Subject("Welcome!") // Required, also for template emails
     .TemplateId("welcome-template")
     .TemplateData(new Dictionary<string, object>
     {
@@ -248,7 +249,8 @@ var client = new LanefulClient(
 using Laneful.Webhooks;
 
 // In your webhook handler
-var payload = await request.Body.ReadAsStringAsync(); // Get the raw request body
+using var reader = new StreamReader(request.Body);
+var payload = await reader.ReadToEndAsync(); // Get the raw request body
 var signature = request.Headers["x-webhook-signature"].FirstOrDefault();
 var secret = "your-webhook-secret";
 
@@ -315,10 +317,10 @@ catch (Exception ex)
 
 #### Constructors
 
-- `LanefulClient(string baseUrl, string authToken)` - Creates client with default timeout (30 seconds)
-- `LanefulClient(string baseUrl, string authToken, TimeSpan timeout)` - Creates client with custom timeout
-- `LanefulClient(string baseUrl, string authToken, HttpClient httpClient)` - Creates client with custom HTTP client
-- `LanefulClient(string baseUrl, string authToken, ILogger<LanefulClient> logger)` - Creates client with logger
+- `LanefulClient(string baseUrl, string authToken, HttpClient? httpClient = null, ILogger<LanefulClient>? logger = null)` - Creates client with default timeout (30 seconds)
+- `LanefulClient(string baseUrl, string authToken, TimeSpan timeout, HttpClient? httpClient = null, ILogger<LanefulClient>? logger = null)` - Creates client with custom timeout
+
+To pass only a logger, name the argument: `new LanefulClient(baseUrl, authToken, logger: logger)`.
 
 #### Methods
 
