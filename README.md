@@ -291,6 +291,8 @@ else
 }
 ```
 
+Each parsed event contains every field Laneful sends. Every event has `id`, `event`, `email`, `message_id`, `lane_id`, `tag`, `timestamp` and `metadata` (the `WebhookData` sent with the email); `lane_id` is empty on `request` events. Event-specific fields such as `url`, `client_ip`, `is_machine`, `code`, `is_hard`, `classification`, `reason` and `mx_host` are included too. `id` is unique per event and stays the same when Laneful delivers the event again on retry or in a batch, so use it to skip events you have already processed. Events of types the SDK doesn't list are kept rather than rejecting the payload, so skip the ones you don't handle.
+
 ## Error Handling
 
 ```csharp
@@ -462,6 +464,7 @@ var snds = await client.ListSndsReportsAsync(new ListSndsReportsParams { Ip = "2
 
 - `bool VerifySignature(string secret, string payload, string signature)` - Verifies webhook signature
 - `string GenerateSignature(string secret, string payload)` - Generates webhook signature
+- `WebhookData ParseWebhookPayload(string payload)` - Parses a single event or a batch; each event has every field Laneful sent
 
 ## Exception Types
 

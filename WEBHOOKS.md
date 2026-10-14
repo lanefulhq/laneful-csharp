@@ -7,6 +7,7 @@ This document describes how to handle Laneful webhooks using the C# SDK, followi
 ✅ **Signature verification with sha256= prefix support**  
 ✅ **Batch and single event mode detection**  
 ✅ **Payload structure validation**  
+✅ **Every event field kept** (`id`, `mx_host`, `is_machine`, `classification`, ...); unknown event types don't fail the payload, and `lane_id` may be empty (`request` events)  
 ✅ **All documented event types supported**  
 ✅ **Header extraction with fallback formats**  
 ✅ **Comprehensive error handling**  
