@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text.Json;
+using Laneful.Exceptions;
 using Laneful.Models;
 using Xunit;
 
@@ -35,6 +36,20 @@ public class LanefulClientTests
 
         Assert.Contains("\"idempotency_key\":\"order-1234\"", handler.LastBody);
         Assert.Contains("\"return_message_ids\":true", handler.LastBody);
+    }
+
+    [Fact]
+    public async Task ApiError_MessageIncludesStatusAndApiError()
+    {
+        var handler = new ScriptedHandler("""{"error":"JSON data error"}""", HttpStatusCode.BadRequest);
+        var client = new Laneful.LanefulClient("https://api.example.com", "test-token", new HttpClient(handler));
+
+        var ex = await Assert.ThrowsAsync<ApiException>(() => client.SendEmailAsync(TestClient.SampleEmail()));
+
+        Assert.Equal(400, ex.StatusCode);
+        Assert.Equal("JSON data error", ex.ErrorMessage);
+        Assert.Contains("(400): JSON data error", ex.Message);
+        Assert.Contains("https://api.example.com/v1/email/send", ex.Message);
     }
 
     [Fact]

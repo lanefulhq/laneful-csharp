@@ -346,7 +346,7 @@ public class LanefulClient
         var fullError = string.IsNullOrEmpty(details) ? errorMessage : $"{errorMessage} - {details}";
 
         throw new ApiException(
-            $"API request failed to {url}",
+            $"API request failed ({statusCode}): {fullError}. URL: {url}",
             statusCode,
             fullError
         );
