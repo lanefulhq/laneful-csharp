@@ -89,6 +89,31 @@ public class MailSettingsTests
         var json = JsonSerializer.Serialize(settings);
         Assert.Contains("\"sandbox_mode\":true", json);
         Assert.Contains("\"return_message_ids\":false", json);
+        Assert.DoesNotContain("idempotency_key", json);
+    }
+
+    [Fact]
+    public void Address_WithoutNameOmitsName()
+    {
+        // The send API rejects "name": null with "JSON data error".
+        var options = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower };
+        Assert.Equal("{\"email\":\"user@example.com\"}",
+            JsonSerializer.Serialize(new Address("user@example.com"), options));
+        Assert.Equal("{\"email\":\"user@example.com\",\"name\":\"User\"}",
+            JsonSerializer.Serialize(new Address("user@example.com", "User"), options));
+    }
+
+    [Fact]
+    public void IdempotencyKey_SerializesAndValidates()
+    {
+        var json = JsonSerializer.Serialize(new MailSettings { IdempotencyKey = "order-1234" });
+        Assert.Equal("{\"idempotency_key\":\"order-1234\"}", json);
+
+        _ = new MailSettings { IdempotencyKey = new string('k', 36) };
+        foreach (var key in new[] { "", new string('k', 37), new string('é', 19) })
+        {
+            Assert.Throws<ValidationException>(() => new MailSettings { IdempotencyKey = key });
+        }
     }
 }
 

@@ -7,6 +7,7 @@ This document describes how to handle Laneful webhooks using the C# SDK, followi
 ✅ **Signature verification with sha256= prefix support**  
 ✅ **Batch and single event mode detection**  
 ✅ **Payload structure validation**  
+✅ **Every event field kept** (`id`, `mx_host`, `is_machine`, `classification`, ...); unknown event types don't fail the payload, and `lane_id` may be empty (`request` events)  
 ✅ **All documented event types supported**  
 ✅ **Header extraction with fallback formats**  
 ✅ **Comprehensive error handling**  
@@ -60,26 +61,10 @@ var signature = WebhookVerifier.ExtractSignatureFromHeaders(headers);
 
 ## Complete Webhook Handler
 
-### WebhookExample Class
+[`examples/WebhookReceiverExample.cs`](examples/WebhookReceiverExample.cs) is a runnable HTTP receiver: it verifies the raw-body signature (401 on bad or missing), parses single or batch events (400 on invalid payloads) and logs each event.
 
-The `WebhookExample` class provides a complete webhook handling solution:
-
-```csharp
-using Laneful.Examples;
-
-var webhookHandler = new WebhookExample("your-webhook-secret");
-
-// Process webhook with headers
-var result = await webhookHandler.HandleWebhookAsync(payload, headers);
-
-if (result.Success)
-{
-    Console.WriteLine($"Processed {result.ProcessedCount} events");
-}
-else
-{
-    Console.WriteLine($"Error: {result.Error}");
-}
+```bash
+LANEFUL_WEBHOOK_SECRET=your-webhook-secret dotnet run --project examples -- WebhookReceiverExample
 ```
 
 ### Event Processing

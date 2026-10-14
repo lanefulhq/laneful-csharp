@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text.Json;
+using Laneful.Exceptions;
 using Laneful.Models;
 using Xunit;
 
@@ -21,7 +22,34 @@ public class LanefulClientTests
         Assert.Contains("\"sandbox_mode\":true", handler.LastBody);
         Assert.Contains("\"return_message_ids\":true", handler.LastBody);
         Assert.Equal("accepted", response["status"].ToString());
-        Assert.Equal("laneful-csharp/1.2.0", handler.LastRequest.Headers.UserAgent.ToString());
+        Assert.Equal("laneful-csharp/1.3.0", handler.LastRequest.Headers.UserAgent.ToString());
+    }
+
+    [Fact]
+    public async Task SendEmail_IncludesIdempotencyKey()
+    {
+        var (client, handler) = TestClient.Create("""{"status":"accepted"}""");
+
+        await client.SendEmailAsync(
+            TestClient.SampleEmail(),
+            new MailSettings(returnMessageIds: true) { IdempotencyKey = "order-1234" });
+
+        Assert.Contains("\"idempotency_key\":\"order-1234\"", handler.LastBody);
+        Assert.Contains("\"return_message_ids\":true", handler.LastBody);
+    }
+
+    [Fact]
+    public async Task ApiError_MessageIncludesStatusAndApiError()
+    {
+        var handler = new ScriptedHandler("""{"error":"JSON data error"}""", HttpStatusCode.BadRequest);
+        var client = new Laneful.LanefulClient("https://api.example.com", "test-token", new HttpClient(handler));
+
+        var ex = await Assert.ThrowsAsync<ApiException>(() => client.SendEmailAsync(TestClient.SampleEmail()));
+
+        Assert.Equal(400, ex.StatusCode);
+        Assert.Equal("JSON data error", ex.ErrorMessage);
+        Assert.Contains("(400): JSON data error", ex.Message);
+        Assert.Contains("https://api.example.com/v1/email/send", ex.Message);
     }
 
     [Fact]

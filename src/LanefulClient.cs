@@ -16,7 +16,7 @@ namespace Laneful;
 public class LanefulClient
 {
     private const string ApiVersion = "v1";
-    private const string UserAgent = "laneful-csharp/1.2.0";
+    private const string UserAgent = "laneful-csharp/1.3.0";
     private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(30);
 
     private readonly string _baseUrl;
@@ -346,7 +346,7 @@ public class LanefulClient
         var fullError = string.IsNullOrEmpty(details) ? errorMessage : $"{errorMessage} - {details}";
 
         throw new ApiException(
-            $"API request failed to {url}",
+            $"API request failed ({statusCode}): {fullError}. URL: {url}",
             statusCode,
             fullError
         );

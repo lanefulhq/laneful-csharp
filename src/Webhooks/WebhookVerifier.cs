@@ -1,7 +1,6 @@
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
-using System.Text.RegularExpressions;
 
 namespace Laneful.Webhooks;
 
@@ -14,18 +13,6 @@ public static class WebhookVerifier
     private const string SignaturePrefix = "sha256=";
     private const string SignatureHeaderName = "x-webhook-signature";
     
-    // Valid event types as documented
-    private static readonly HashSet<string> ValidEventTypes = new()
-    {
-        "request", "delivery", "open", "click", "drop", "spam_complaint", "unsubscribe", "bounce"
-    };
-    
-    // UUID pattern for lane_id validation
-    private static readonly Regex UuidPattern = new(
-        @"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
-        RegexOptions.IgnoreCase | RegexOptions.Compiled
-    );
-
     /// <summary>
     /// Verifies a webhook signature with support for sha256= prefix.
     /// </summary>
@@ -139,20 +126,13 @@ public static class WebhookVerifier
             if (!eventElement.TryGetProperty(field, out var property))
                 throw new ArgumentException($"Missing required field: {field}");
             
-            eventDict[field] = property.ValueKind switch
-            {
-                JsonValueKind.String => property.GetString(),
-                JsonValueKind.Number => property.GetInt64(),
-                JsonValueKind.True => true,
-                JsonValueKind.False => false,
-                _ => property.GetRawText()
-            };
+            eventDict[field] = ConvertValue(property);
         }
 
-        // Validate event type
+        // Event types aren't checked: new event types must not make the whole payload fail.
         var eventType = eventDict["event"]?.ToString();
-        if (string.IsNullOrEmpty(eventType) || !ValidEventTypes.Contains(eventType))
-            throw new ArgumentException($"Invalid event type: {eventType}");
+        if (string.IsNullOrEmpty(eventType))
+            throw new ArgumentException("Missing required field: event");
 
         // Validate email format
         var email = eventDict["email"]?.ToString();
@@ -164,37 +144,28 @@ public static class WebhookVerifier
         if (timestamp is not long and not int)
             throw new ArgumentException("Invalid timestamp format");
 
-        // Validate lane_id is a valid UUID format
-        var laneId = eventDict["lane_id"]?.ToString();
-        if (string.IsNullOrEmpty(laneId) || !UuidPattern.IsMatch(laneId))
-            throw new ArgumentException($"Invalid lane_id format: {laneId}");
-
-        // Add optional fields
-        var optionalFields = new[]
+        // Keep every other field Laneful sends (id, mx_host, code, is_machine, ...). lane_id
+        // isn't checked: request events have an empty lane_id.
+        foreach (var property in eventElement.EnumerateObject())
         {
-            "metadata", "tag", "url", "is_hard", "text", "reason", 
-            "unsubscribe_group_id", "client_device", "client_os", "client_ip"
-        };
-
-        foreach (var field in optionalFields)
-        {
-            if (eventElement.TryGetProperty(field, out var property))
-            {
-                eventDict[field] = property.ValueKind switch
-                {
-                    JsonValueKind.String => property.GetString(),
-                    JsonValueKind.Number => property.GetInt64(),
-                    JsonValueKind.True => true,
-                    JsonValueKind.False => false,
-                    JsonValueKind.Object => JsonSerializer.Deserialize<Dictionary<string, object>>(property.GetRawText()),
-                    JsonValueKind.Array => JsonSerializer.Deserialize<object[]>(property.GetRawText()),
-                    _ => property.GetRawText()
-                };
-            }
+            if (!eventDict.ContainsKey(property.Name))
+                eventDict[property.Name] = ConvertValue(property.Value);
         }
 
         return eventDict;
     }
+
+    private static object? ConvertValue(JsonElement value) => value.ValueKind switch
+    {
+        JsonValueKind.String => value.GetString(),
+        JsonValueKind.Number => value.TryGetInt64(out var number) ? (object)number : value.GetDouble(),
+        JsonValueKind.True => true,
+        JsonValueKind.False => false,
+        JsonValueKind.Null => null,
+        JsonValueKind.Object => JsonSerializer.Deserialize<Dictionary<string, object>>(value.GetRawText()),
+        JsonValueKind.Array => JsonSerializer.Deserialize<object[]>(value.GetRawText()),
+        _ => value.GetRawText()
+    };
 
     /// <summary>
     /// Simple email validation.

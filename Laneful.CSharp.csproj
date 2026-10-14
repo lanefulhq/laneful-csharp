@@ -6,7 +6,7 @@
     <Nullable>enable</Nullable>
     <LangVersion>latest</LangVersion>
     <PackageId>Laneful.CSharp</PackageId>
-    <Version>1.2.0</Version>
+    <Version>1.3.0</Version>
     <Authors>Laneful</Authors>
     <Company>Laneful</Company>
     <Description>A C# client library for the Laneful email API</Description>
