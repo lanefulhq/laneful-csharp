@@ -93,6 +93,17 @@ public class MailSettingsTests
     }
 
     [Fact]
+    public void Address_WithoutNameOmitsName()
+    {
+        // The send API rejects "name": null with "JSON data error".
+        var options = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower };
+        Assert.Equal("{\"email\":\"user@example.com\"}",
+            JsonSerializer.Serialize(new Address("user@example.com"), options));
+        Assert.Equal("{\"email\":\"user@example.com\",\"name\":\"User\"}",
+            JsonSerializer.Serialize(new Address("user@example.com", "User"), options));
+    }
+
+    [Fact]
     public void IdempotencyKey_SerializesAndValidates()
     {
         var json = JsonSerializer.Serialize(new MailSettings { IdempotencyKey = "order-1234" });

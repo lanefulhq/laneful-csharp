@@ -12,6 +12,7 @@ public record Address
     public string Email { get; }
 
     [JsonPropertyName("name")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Name { get; }
 
     /// <summary>
