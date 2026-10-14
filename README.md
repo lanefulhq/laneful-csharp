@@ -293,6 +293,8 @@ else
 
 Each parsed event contains every field Laneful sends. Every event has `id`, `event`, `email`, `message_id`, `lane_id`, `tag`, `timestamp` and `metadata` (the `WebhookData` sent with the email); `lane_id` is empty on `request` events. Event-specific fields such as `url`, `client_ip`, `is_machine`, `code`, `is_hard`, `classification`, `reason` and `mx_host` are included too. `id` is unique per event and stays the same when Laneful delivers the event again on retry or in a batch, so use it to skip events you have already processed. Events of types the SDK doesn't list are kept rather than rejecting the payload, so skip the ones you don't handle.
 
+See [`examples/WebhookReceiverExample.cs`](examples/WebhookReceiverExample.cs) for a runnable HTTP receiver (`LANEFUL_WEBHOOK_SECRET=... dotnet run --project examples -- WebhookReceiverExample`).
+
 ## Error Handling
 
 ```csharp

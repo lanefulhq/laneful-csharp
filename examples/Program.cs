@@ -50,6 +50,10 @@ public class Program
                 case "webhookhandlerexample":
                     await WebhookHandlerExample.RunExample(args);
                     break;
+                case "webhookreceiver":
+                case "webhookreceiverexample":
+                    await WebhookReceiverExample.RunExample(args);
+                    break;
                 case "error":
                 case "errorhandlingexample":
                     await ErrorHandlingExample.RunExample(args);
@@ -88,6 +92,7 @@ public class Program
                     Console.WriteLine("  - ScheduledEmailExample");
                     Console.WriteLine("  - BatchEmailExample");
                     Console.WriteLine("  - WebhookHandlerExample");
+                    Console.WriteLine("  - WebhookReceiverExample (HTTP receiver, runs until stopped)");
                     Console.WriteLine("  - ErrorHandlingExample");
                     Console.WriteLine("  - ComprehensiveExample");
                     Console.WriteLine("  - MailSettingsExample");
