@@ -205,6 +205,19 @@ var response = await client.SendEmailAsync(
 // response["message_ids"] is present when returnMessageIds is true
 ```
 
+### Duplicate send protection
+
+Set an idempotency key (1 to 36 bytes) and reuse it when you retry a send, for example after a timeout. The client does not retry on its own.
+
+```csharp
+var response = await client.SendEmailAsync(
+    email,
+    new MailSettings { IdempotencyKey = $"order-{orderId}" }
+);
+```
+
+Laneful remembers a key per organization for one hour. A repeated request with the same key gets status `accepted` with no message IDs and sends nothing, even if the emails differ, so use a new key for every distinct send. If a request fails, the key is released and a retry with the same key is processed normally. Sandbox mode requests are not deduplicated. A key outside 1 to 36 bytes throws `ValidationException`.
+
 ### Tracking with an unsubscribe group
 
 ```csharp
@@ -387,6 +400,7 @@ Organization API host (`https://api.laneful.net`):
 ### MailSettings
 
 - `MailSettings(bool? sandboxMode = null, bool? returnMessageIds = null)` - Request-level send options
+- `string? IdempotencyKey { get; init; }` - Duplicate send protection key (1 to 36 bytes)
 
 ## Domain, unsubscribe groups, and analytics
 

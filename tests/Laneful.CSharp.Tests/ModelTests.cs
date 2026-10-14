@@ -89,6 +89,20 @@ public class MailSettingsTests
         var json = JsonSerializer.Serialize(settings);
         Assert.Contains("\"sandbox_mode\":true", json);
         Assert.Contains("\"return_message_ids\":false", json);
+        Assert.DoesNotContain("idempotency_key", json);
+    }
+
+    [Fact]
+    public void IdempotencyKey_SerializesAndValidates()
+    {
+        var json = JsonSerializer.Serialize(new MailSettings { IdempotencyKey = "order-1234" });
+        Assert.Equal("{\"idempotency_key\":\"order-1234\"}", json);
+
+        _ = new MailSettings { IdempotencyKey = new string('k', 36) };
+        foreach (var key in new[] { "", new string('k', 37), new string('é', 19) })
+        {
+            Assert.Throws<ValidationException>(() => new MailSettings { IdempotencyKey = key });
+        }
     }
 }
 

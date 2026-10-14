@@ -25,6 +25,19 @@ public class LanefulClientTests
     }
 
     [Fact]
+    public async Task SendEmail_IncludesIdempotencyKey()
+    {
+        var (client, handler) = TestClient.Create("""{"status":"accepted"}""");
+
+        await client.SendEmailAsync(
+            TestClient.SampleEmail(),
+            new MailSettings(returnMessageIds: true) { IdempotencyKey = "order-1234" });
+
+        Assert.Contains("\"idempotency_key\":\"order-1234\"", handler.LastBody);
+        Assert.Contains("\"return_message_ids\":true", handler.LastBody);
+    }
+
+    [Fact]
     public async Task ListUnsubscribeGroups_BuildsQuery()
     {
         var (client, handler) = TestClient.Create("""
