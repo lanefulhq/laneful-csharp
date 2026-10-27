@@ -131,4 +131,33 @@ public class DomainModelTests
         var set = JsonSerializer.Serialize(new UpdateDomainRequest("track-1"));
         Assert.Contains("\"email_track_id\":\"track-1\"", set);
     }
+
+    // "é" is 2 bytes in UTF-8: 25 fill a 50-byte key and 50 fill a 100-byte value.
+    [Theory]
+    [InlineData(25, 50, null)]
+    [InlineData(26, 1, "50 bytes")]
+    [InlineData(1, 51, "100 bytes")]
+    public void WebhookData_CountsUtf8Bytes(int keyChars, int valueChars, string? expectedError)
+    {
+        var data = new Dictionary<string, string>
+        {
+            [new string('é', keyChars)] = new string('é', valueChars)
+        };
+        var builder = new Email.Builder()
+            .From(new Address("sender@example.com"))
+            .To(new Address("to@example.com"))
+            .Subject("Test")
+            .TextContent("Content")
+            .WebhookData(data);
+
+        if (expectedError == null)
+        {
+            Assert.Equal(data, builder.Build().WebhookData);
+        }
+        else
+        {
+            var ex = Assert.Throws<ValidationException>(() => builder.Build());
+            Assert.Contains(expectedError, ex.Message);
+        }
+    }
 }
