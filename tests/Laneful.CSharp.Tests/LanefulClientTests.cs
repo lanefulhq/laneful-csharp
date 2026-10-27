@@ -22,7 +22,7 @@ public class LanefulClientTests
         Assert.Contains("\"sandbox_mode\":true", handler.LastBody);
         Assert.Contains("\"return_message_ids\":true", handler.LastBody);
         Assert.Equal("accepted", response["status"].ToString());
-        Assert.Equal("laneful-csharp/1.3.0", handler.LastRequest.Headers.UserAgent.ToString());
+        Assert.Equal("laneful-csharp/1.3.1", handler.LastRequest.Headers.UserAgent.ToString());
     }
 
     [Fact]

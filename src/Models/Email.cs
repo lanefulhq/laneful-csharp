@@ -1,3 +1,4 @@
+using System.Text;
 using System.Text.Json.Serialization;
 using Laneful.Exceptions;
 
@@ -241,12 +242,13 @@ public class Email
             if (WebhookData.Count > 20)
                 throw new ValidationException("Webhook data cannot have more than 20 keys");
 
+            // The send API counts UTF-8 bytes, so "é" counts as 2.
             foreach (var (key, value) in WebhookData)
             {
-                if (key.Length > 50)
-                    throw new ValidationException("Webhook data keys cannot exceed 50 characters");
-                if (value.Length > 100)
-                    throw new ValidationException("Webhook data values cannot exceed 100 characters");
+                if (Encoding.UTF8.GetByteCount(key) > 50)
+                    throw new ValidationException("Webhook data keys cannot exceed 50 bytes (UTF-8)");
+                if (Encoding.UTF8.GetByteCount(value) > 100)
+                    throw new ValidationException("Webhook data values cannot exceed 100 bytes (UTF-8)");
             }
         }
 
